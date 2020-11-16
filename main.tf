@@ -16,8 +16,8 @@ locals {
 resource "random_password" "master_password" {
   count = var.create_cluster ? 1 : 0
 
-  length  = 10
-  special = false
+  length  = 24
+  special = true
 }
 
 resource "aws_db_subnet_group" "this" {
