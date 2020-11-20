@@ -82,6 +82,12 @@ variable "password" {
   default     = ""
 }
 
+variable "db_creds_path" {
+  description = "AWS Secrets Manager DB credentials"
+  type        = string
+  default     = ""
+}
+
 variable "final_snapshot_identifier_prefix" {
   description = "The prefix name to use when creating a final snapshot on cluster destroy, appends a random 8 digits to name to ensure it's unique too."
   type        = string
