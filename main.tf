@@ -1,6 +1,6 @@
 locals {
   port                 = var.port == "" ? var.engine == "aurora-postgresql" ? "5432" : "3306" : var.port
-  stored_password      = jsondecode(data.aws_secretsmanager_secret_version.stored_db_creds.password)
+  stored_password      = var.db_creds_path == "" ? "" : jsondecode(data.aws_secretsmanager_secret_version.stored_db_creds.password)
   master_password      = var.password == "" ? (var.db_creds_path == "" ? element(concat(random_password.master_password.*.result, [""]), 0) : local.stored_password) : var.password
   //master_password      = var.password == "" ? element(concat(random_password.master_password.*.result, [""]), 0) : var.password
   db_subnet_group_name = var.db_subnet_group_name == "" ? join("", aws_db_subnet_group.this.*.name) : var.db_subnet_group_name
