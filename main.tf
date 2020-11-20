@@ -1,6 +1,8 @@
 locals {
   port                 = var.port == "" ? var.engine == "aurora-postgresql" ? "5432" : "3306" : var.port
-  master_password      = var.password == "" ? element(concat(random_password.master_password.*.result, [""]), 0) : var.password
+  stored_password      = jsondecode(data.aws_secretsmanager_secret_version.stored_db_creds.password)
+  master_password      = var.password == "" ? (var.db_creds_path == "" ? element(concat(random_password.master_password.*.result, [""]), 0) : local.stored_password) : var.password
+  //master_password      = var.password == "" ? element(concat(random_password.master_password.*.result, [""]), 0) : var.password
   db_subnet_group_name = var.db_subnet_group_name == "" ? join("", aws_db_subnet_group.this.*.name) : var.db_subnet_group_name
   backtrack_window     = (var.engine == "aurora-mysql" || var.engine == "aurora") && var.engine_mode != "serverless" ? var.backtrack_window : 0
 
@@ -18,6 +20,11 @@ resource "random_password" "master_password" {
 
   length  = 24
   special = true
+}
+
+data "aws_secretsmanager_secret_version" "stored_db_creds" {
+  // secret_id = "production/panel-rewards-aurora-rds"
+  secret_id = var.db_creds_path
 }
 
 resource "aws_db_subnet_group" "this" {
