@@ -1,7 +1,7 @@
 locals {
   port                 = var.port == "" ? var.engine == "aurora-postgresql" ? "5432" : "3306" : var.port
-  stored_password      = var.db_creds_path == "" ? "" : jsondecode(data.aws_secretsmanager_secret_version.stored_db_creds.password)
-  master_password      = var.password == "" ? (var.db_creds_path == "" ? element(concat(random_password.master_password.*.result, [""]), 0) : local.stored_password) : var.password
+  stored_creds         = var.db_creds_path == "" ? "" : jsondecode(data.aws_secretsmanager_secret_version.stored_db_creds.secret_string)
+  master_password      = var.password == "" ? (var.db_creds_path == "" ? element(concat(random_password.master_password.*.result, [""]), 0) : local.stored_creds.password) : var.password
   //master_password      = var.password == "" ? element(concat(random_password.master_password.*.result, [""]), 0) : var.password
   db_subnet_group_name = var.db_subnet_group_name == "" ? join("", aws_db_subnet_group.this.*.name) : var.db_subnet_group_name
   backtrack_window     = (var.engine == "aurora-mysql" || var.engine == "aurora") && var.engine_mode != "serverless" ? var.backtrack_window : 0
