@@ -19,6 +19,7 @@ resource "random_password" "master_password" {
 
   length  = 24
   special = true
+  override_special = "!#$%&*()-_=+[]{}<>:?" # Must not contain any of `/'"@` as per AWS RDS password rules
 }
 
 data "aws_secretsmanager_secret_version" "stored_db_creds" {
