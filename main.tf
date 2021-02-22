@@ -13,9 +13,9 @@ locals {
   name = "aurora-${var.name}"
 }
 
-# Random string to use as master password unless one is specified
+# Random string to use as master password
 resource "random_password" "master_password" {
-  count = var.create_cluster ? 1 : 0
+  count = var.create_cluster && var.create_random_password ? 1 : 0
 
   length  = 24
   special = true
@@ -49,6 +49,7 @@ resource "aws_rds_cluster" "this" {
   engine                              = var.engine
   engine_mode                         = var.engine_mode
   engine_version                      = var.engine_version
+  allow_major_version_upgrade         = var.allow_major_version_upgrade
   enable_http_endpoint                = var.enable_http_endpoint
   kms_key_id                          = var.kms_key_id
   database_name                       = var.database_name
@@ -159,7 +160,7 @@ resource "aws_iam_role_policy_attachment" "rds_enhanced_monitoring" {
   count = var.create_cluster && var.create_monitoring_role && var.monitoring_interval > 0 ? 1 : 0
 
   role       = local.rds_enhanced_monitoring_name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+  policy_arn = "arn:${var.iam_partition}:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
 }
 
 resource "aws_appautoscaling_target" "read_replica_count" {

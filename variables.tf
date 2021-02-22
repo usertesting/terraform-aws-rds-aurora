@@ -10,6 +10,12 @@ variable "create_security_group" {
   default     = true
 }
 
+variable "create_random_password" {
+  description = "Whether to create random password for RDS primary cluster"
+  type        = bool
+  default     = true
+}
+
 variable "name" {
   description = "Name given resources"
   type        = string
@@ -88,6 +94,12 @@ variable "db_creds_path" {
   default     = ""
 }
 
+variable "is_primary_cluster" {
+  description = "Whether to create a primary cluster (set to false to be a part of a Global database)"
+  type        = bool
+  default     = true
+}
+
 variable "final_snapshot_identifier_prefix" {
   description = "The prefix name to use when creating a final snapshot on cluster destroy, appends a random 8 digits to name to ensure it's unique too."
   type        = string
@@ -136,6 +148,12 @@ variable "apply_immediately" {
   default     = false
 }
 
+variable "iam_partition" {
+  description = "IAM Partition to use when generating ARN's. For most regions this can be left at default. China/Govcloud use different partitions"
+  type        = string
+  default     = "aws"
+}
+
 variable "monitoring_role_arn" {
   description = "IAM role for RDS to send enhanced monitoring metrics to CloudWatch"
   type        = string
@@ -152,6 +170,12 @@ variable "monitoring_interval" {
   description = "The interval (seconds) between points when Enhanced Monitoring metrics are collected"
   type        = number
   default     = 0
+}
+
+variable "allow_major_version_upgrade" {
+  description = "Determines whether major engine upgrades are allowed when changing engine version"
+  type        = bool
+  default     = false
 }
 
 variable "auto_minor_version_upgrade" {
