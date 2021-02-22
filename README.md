@@ -12,9 +12,9 @@ These types of resources are supported:
 
 ## Terraform versions
 
-Terraform 0.12 and newer. Pin module version to `~> v2.0`. Submit pull-requests to `master` branch.
+Terraform 0.12 and newer. Pin module version to `~> v3.0`. Submit pull-requests to `master` branch.
 
-Terraform 0.11. Pin module version to `~> v1.0`. Submit pull-requests to `terraform011` branch.
+Terraform 0.11. Pin module version to `~> v1.0`.
 
 ## Available features
 
@@ -26,7 +26,7 @@ Terraform 0.11. Pin module version to `~> v1.0`. Submit pull-requests to `terraf
 ```hcl
 module "db" {
   source  = "terraform-aws-modules/rds-aurora/aws"
-  version = "~> 2.0"
+  version = "~> 3.0"
 
   name                            = "test-aurora-db-postgres96"
 
@@ -64,7 +64,7 @@ Sometimes you need to have a way to create RDS Aurora resources conditionally bu
 # This RDS cluster will not be created
 module "db" {
   source  = "terraform-aws-modules/rds-aurora/aws"
-  version = "~> 2.0"
+  version = "~> 3.0"
 
   create_cluster = false
   # ... omitted
@@ -89,20 +89,42 @@ Terraform documentation is generated automatically using [pre-commit hooks](http
 | Name | Version |
 |------|---------|
 | terraform | >= 0.12.6 |
-| aws | >= 2.45 |
+| aws | >= 3.8 |
 | random | >= 2.2 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| aws | >= 2.45 |
+| aws | >= 3.8 |
 | random | >= 2.2 |
+
+## Modules
+
+No Modules.
+
+## Resources
+
+| Name |
+|------|
+| [aws_appautoscaling_policy](https://registry.terraform.io/providers/hashicorp/aws/3.8/docs/resources/appautoscaling_policy) |
+| [aws_appautoscaling_target](https://registry.terraform.io/providers/hashicorp/aws/3.8/docs/resources/appautoscaling_target) |
+| [aws_db_subnet_group](https://registry.terraform.io/providers/hashicorp/aws/3.8/docs/resources/db_subnet_group) |
+| [aws_iam_policy_document](https://registry.terraform.io/providers/hashicorp/aws/3.8/docs/data-sources/iam_policy_document) |
+| [aws_iam_role_policy_attachment](https://registry.terraform.io/providers/hashicorp/aws/3.8/docs/resources/iam_role_policy_attachment) |
+| [aws_iam_role](https://registry.terraform.io/providers/hashicorp/aws/3.8/docs/resources/iam_role) |
+| [aws_rds_cluster_instance](https://registry.terraform.io/providers/hashicorp/aws/3.8/docs/resources/rds_cluster_instance) |
+| [aws_rds_cluster](https://registry.terraform.io/providers/hashicorp/aws/3.8/docs/resources/rds_cluster) |
+| [aws_security_group_rule](https://registry.terraform.io/providers/hashicorp/aws/3.8/docs/resources/security_group_rule) |
+| [aws_security_group](https://registry.terraform.io/providers/hashicorp/aws/3.8/docs/resources/security_group) |
+| [random_id](https://registry.terraform.io/providers/hashicorp/random/2.2/docs/resources/id) |
+| [random_password](https://registry.terraform.io/providers/hashicorp/random/2.2/docs/resources/password) |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| allow\_major\_version\_upgrade | Determines whether major engine upgrades are allowed when changing engine version | `bool` | `false` | no |
 | allowed\_cidr\_blocks | A list of CIDR blocks which are allowed to access the database | `list(string)` | `[]` | no |
 | allowed\_security\_groups | A list of Security Group ID's to allow access to. | `list(string)` | `[]` | no |
 | apply\_immediately | Determines whether or not any DB modifications are applied immediately, or during the maintenance window | `bool` | `false` | no |
@@ -113,6 +135,7 @@ Terraform documentation is generated automatically using [pre-commit hooks](http
 | copy\_tags\_to\_snapshot | Copy all Cluster tags to snapshots. | `bool` | `false` | no |
 | create\_cluster | Controls if RDS cluster should be created (it affects almost all resources) | `bool` | `true` | no |
 | create\_monitoring\_role | Whether to create the IAM role for RDS enhanced monitoring | `bool` | `true` | no |
+| create\_random\_password | Whether to create random password for RDS primary cluster | `bool` | `true` | no |
 | create\_security\_group | Whether to create security group for RDS cluster | `bool` | `true` | no |
 | database\_name | Name for an automatically created database on cluster creation | `string` | `""` | no |
 | db\_cluster\_parameter\_group\_name | The name of a DB Cluster parameter group to use | `string` | `null` | no |
@@ -127,10 +150,12 @@ Terraform documentation is generated automatically using [pre-commit hooks](http
 | final\_snapshot\_identifier\_prefix | The prefix name to use when creating a final snapshot on cluster destroy, appends a random 8 digits to name to ensure it's unique too. | `string` | `"final"` | no |
 | global\_cluster\_identifier | The global cluster identifier specified on aws\_rds\_global\_cluster | `string` | `""` | no |
 | iam\_database\_authentication\_enabled | Specifies whether IAM Database authentication should be enabled or not. Not all versions and instances are supported. Refer to the AWS documentation to see which versions are supported. | `bool` | `false` | no |
+| iam\_partition | IAM Partition to use when generating ARN's. For most regions this can be left at default. China/Govcloud use different partitions | `string` | `"aws"` | no |
 | iam\_roles | A List of ARNs for the IAM roles to associate to the RDS Cluster. | `list(string)` | `[]` | no |
 | instance\_type | Instance type to use at master instance. If instance\_type\_replica is not set it will use the same type for replica instances | `string` | `""` | no |
 | instance\_type\_replica | Instance type to use at replica instance | `string` | `null` | no |
 | instances\_parameters | Customized instance settings. Supported keys: instance\_name, instance\_type, instance\_promotion\_tier, publicly\_accessible | `list(map(string))` | `[]` | no |
+| is\_primary\_cluster | Whether to create a primary cluster (set to false to be a part of a Global database) | `bool` | `true` | no |
 | kms\_key\_id | The ARN for the KMS encryption key if one is set to the cluster. | `string` | `""` | no |
 | monitoring\_interval | The interval (seconds) between points when Enhanced Monitoring metrics are collected | `number` | `0` | no |
 | monitoring\_role\_arn | IAM role for RDS to send enhanced monitoring metrics to CloudWatch | `string` | `""` | no |
@@ -183,7 +208,6 @@ Terraform documentation is generated automatically using [pre-commit hooks](http
 | this\_rds\_cluster\_reader\_endpoint | The cluster reader endpoint |
 | this\_rds\_cluster\_resource\_id | The Resource ID of the cluster |
 | this\_security\_group\_id | The security group ID of the cluster |
-
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 
 ## Authors
