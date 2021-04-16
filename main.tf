@@ -1,9 +1,8 @@
 locals {
   port                 = var.port == "" ? (var.engine == "aurora-postgresql" ? 5432 : 3306) : var.port
-  stored_creds         = var.db_creds_path == "" ? {} : jsondecode(data.aws_secretsmanager_secret_version.stored_db_creds[0].secret_string)
-  master_password      = var.password == "" ? (var.db_creds_path == "" ? element(concat(random_password.master_password.*.result, [""]), 0) : local.stored_creds.password) : var.password
   db_subnet_group_name = var.db_subnet_group_name == "" ? join("", aws_db_subnet_group.this.*.name) : var.db_subnet_group_name
-  master_password      = var.create_cluster && var.create_random_password && var.is_primary_cluster ? random_password.master_password[0].result : var.password
+  stored_creds         = var.db_creds_path == "" ? {} : jsondecode(data.aws_ssm_parameter.stored_db_creds.value)
+  master_password      = var.password == "" ? (var.db_creds_path == "" ? element(concat(random_password.master_password.*.result, [""]), 0) : local.stored_creds.password) : var.password
   backtrack_window     = (var.engine == "aurora-mysql" || var.engine == "aurora") && var.engine_mode != "serverless" ? var.backtrack_window : 0
 
   rds_enhanced_monitoring_arn = var.create_monitoring_role ? join("", aws_iam_role.rds_enhanced_monitoring.*.arn) : var.monitoring_role_arn
@@ -25,13 +24,15 @@ resource "random_password" "master_password" {
 
   length  = 24
   special = true
-  override_special = "!#$%&*()-_=+[]{}<>:?" # Must not contain any of `/'"@` as per AWS RDS password rules
+  override_special = "!#$%&*()-_=+[]{}<>:?" # Must not contain any of "/", "@" or quotes as per AWS RDS password rules
 }
 
-data "aws_secretsmanager_secret_version" "stored_db_creds" {
+# Find password stored in AWS SSM Parameter Store
+data "aws_ssm_parameter" "stored_db_creds" {
   count     = var.db_creds_path == "" ? 0 : 1
 
-  secret_id = var.db_creds_path
+  name = var.db_creds_path
+  with_decryption = false
 }
 
 resource "random_id" "snapshot_identifier" {
