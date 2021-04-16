@@ -10,13 +10,6 @@ variable "create_security_group" {
   default     = true
 }
 
-# UT specific variable
-variable "create_random_password" {
-  description = "Whether to create random password for RDS primary cluster"
-  type        = bool
-  default     = true
-}
-
 variable "name" {
   description = "Name used across resources created"
   type        = string
