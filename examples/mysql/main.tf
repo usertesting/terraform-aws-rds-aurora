@@ -74,20 +74,9 @@ resource "aws_db_parameter_group" "example" {
   tags        = local.tags
 }
 
-<<<<<<< HEAD
-resource "random_password" "master" {
-  length = 10
-}
-
-module "disabled_aurora" {
-  source = "../../"
-
-  create_cluster = false
-=======
 resource "aws_rds_cluster_parameter_group" "example" {
   name        = "${local.name}-aurora-57-cluster-parameter-group"
   family      = "aurora-mysql5.7"
   description = "${local.name}-aurora-57-cluster-parameter-group"
   tags        = local.tags
->>>>>>> upstream/master
 }
