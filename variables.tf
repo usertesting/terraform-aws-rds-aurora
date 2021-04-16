@@ -10,6 +10,7 @@ variable "create_security_group" {
   default     = true
 }
 
+# UT specific variable
 variable "create_random_password" {
   description = "Whether to create random password for RDS primary cluster"
   type        = bool
@@ -94,6 +95,7 @@ variable "password" {
   default     = ""
 }
 
+# UT specific variable
 variable "db_creds_path" {
   description = "AWS Secrets Manager DB credentials"
   type        = string

@@ -18,7 +18,7 @@ locals {
 # Ref. https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html#genref-aws-service-namespaces
 data "aws_partition" "current" {}
 
-# Random string to use as master password
+# Random string to use as master password - modified for UT
 resource "random_password" "master_password" {
   count = var.create_cluster && var.create_random_password ? 1 : 0
 
@@ -27,7 +27,7 @@ resource "random_password" "master_password" {
   override_special = "!#$%&*()-_=+[]{}<>:?" # Must not contain any of "/", "@" or quotes as per AWS RDS password rules
 }
 
-# Find password stored in AWS SSM Parameter Store
+# Find password stored in AWS SSM Parameter Store - UT specific
 data "aws_ssm_parameter" "stored_db_creds" {
   count     = var.db_creds_path == "" ? 0 : 1
 
