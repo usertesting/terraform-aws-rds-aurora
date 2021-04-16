@@ -22,16 +22,16 @@ data "aws_partition" "current" {}
 resource "random_password" "master_password" {
   count = var.create_cluster && var.create_random_password ? 1 : 0
 
-  length  = 24
-  special = true
+  length           = 24
+  special          = true
   override_special = "!#$%&*()-_=+[]{}<>:?" # Must not contain any of "/", "@" or quotes as per AWS RDS password rules
 }
 
 # Find password stored in AWS SSM Parameter Store - UT specific
 data "aws_ssm_parameter" "stored_db_creds" {
-  count     = var.db_creds_path == "" ? 0 : 1
+  count = var.db_creds_path == "" ? 0 : 1
 
-  name = var.db_creds_path
+  name            = var.db_creds_path
   with_decryption = false
 }
 
