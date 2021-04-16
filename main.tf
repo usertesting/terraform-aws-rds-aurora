@@ -1,31 +1,48 @@
 locals {
-  port                 = var.port == "" ? var.engine == "aurora-postgresql" ? "5432" : "3306" : var.port
-  stored_creds         = var.db_creds_path == "" ? {} : jsondecode(data.aws_secretsmanager_secret_version.stored_db_creds[0].secret_string)
-  master_password      = var.password == "" ? (var.db_creds_path == "" ? element(concat(random_password.master_password.*.result, [""]), 0) : local.stored_creds.password) : var.password
+  port                 = var.port == "" ? (var.engine == "aurora-postgresql" ? 5432 : 3306) : var.port
   db_subnet_group_name = var.db_subnet_group_name == "" ? join("", aws_db_subnet_group.this.*.name) : var.db_subnet_group_name
+  stored_creds         = var.db_creds_path == "" ? {} : jsondecode(data.aws_ssm_parameter.stored_db_creds[0].value)
+  master_password      = var.create_cluster && var.create_random_password && var.is_primary_cluster ? (var.db_creds_path == "" ? random_password.master_password[0].result : local.stored_creds) : var.password
   backtrack_window     = (var.engine == "aurora-mysql" || var.engine == "aurora") && var.engine_mode != "serverless" ? var.backtrack_window : 0
 
-  rds_enhanced_monitoring_arn  = var.create_monitoring_role ? join("", aws_iam_role.rds_enhanced_monitoring.*.arn) : var.monitoring_role_arn
-  rds_enhanced_monitoring_name = join("", aws_iam_role.rds_enhanced_monitoring.*.name)
+  rds_enhanced_monitoring_arn = var.create_monitoring_role ? join("", aws_iam_role.rds_enhanced_monitoring.*.arn) : var.monitoring_role_arn
+  rds_security_group_id       = join("", aws_security_group.this.*.id)
 
-  rds_security_group_id = join("", aws_security_group.this.*.id)
+  # TODO - remove coalesce() at next breaking change - adding existing name as fallback to maintain backwards compatibility
+  iam_role_name        = var.iam_role_use_name_prefix ? null : coalesce(var.iam_role_name, "rds-enhanced-monitoring-${var.name}")
+  iam_role_name_prefix = var.iam_role_use_name_prefix ? "${var.iam_role_name}-" : null
 
   name = "aurora-${var.name}"
 }
 
-# Random string to use as master password
+# Ref. https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html#genref-aws-service-namespaces
+data "aws_partition" "current" {}
+
+# Random string to use as master password - modified for UT
 resource "random_password" "master_password" {
   count = var.create_cluster && var.create_random_password ? 1 : 0
 
-  length  = 24
-  special = true
-  override_special = "!#$%&*()-_=+[]{}<>:?" # Must not contain any of `/'"@` as per AWS RDS password rules
+  length           = 24
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?" # Must not contain any of "/", "@" or quotes as per AWS RDS password rules
 }
 
-data "aws_secretsmanager_secret_version" "stored_db_creds" {
-  count     = var.db_creds_path == "" ? 0 : 1
+# Find password stored in AWS SSM Parameter Store - UT specific
+data "aws_ssm_parameter" "stored_db_creds" {
+  count = var.db_creds_path == "" ? 0 : 1
 
-  secret_id = var.db_creds_path
+  name            = var.db_creds_path
+  with_decryption = false
+}
+
+resource "random_id" "snapshot_identifier" {
+  count = var.create_cluster ? 1 : 0
+
+  keepers = {
+    id = var.name
+  }
+
+  byte_length = 4
 }
 
 resource "aws_db_subnet_group" "this" {
@@ -49,7 +66,7 @@ resource "aws_rds_cluster" "this" {
   source_region                       = var.source_region
   engine                              = var.engine
   engine_mode                         = var.engine_mode
-  engine_version                      = var.engine_version
+  engine_version                      = var.engine_mode == "serverless" ? null : var.engine_version
   allow_major_version_upgrade         = var.allow_major_version_upgrade
   enable_http_endpoint                = var.enable_http_endpoint
   kms_key_id                          = var.kms_key_id
@@ -88,18 +105,29 @@ resource "aws_rds_cluster" "this" {
     }
   }
 
-  tags = var.tags
+  dynamic "s3_import" {
+    for_each = var.s3_import != null ? [var.s3_import] : []
+    content {
+      source_engine         = "mysql"
+      source_engine_version = s3_import.value.source_engine_version
+      bucket_name           = s3_import.value.bucket_name
+      bucket_prefix         = lookup(s3_import.value, "bucket_prefix", null)
+      ingestion_role        = s3_import.value.ingestion_role
+    }
+  }
+
+  tags = merge(var.tags, var.cluster_tags)
 }
 
 resource "aws_rds_cluster_instance" "this" {
   count = var.create_cluster ? (var.replica_scale_enabled ? var.replica_scale_min : var.replica_count) : 0
 
-  identifier                      = length(var.instances_parameters) > count.index ? lookup(var.instances_parameters[count.index], "instance_name", "${var.name}-${count.index + 1}") : "${var.name}-${count.index + 1}"
+  identifier                      = try(lookup(var.instances_parameters[count.index], "instance_name"), "${var.name}-${count.index + 1}")
   cluster_identifier              = element(concat(aws_rds_cluster.this.*.id, [""]), 0)
   engine                          = var.engine
   engine_version                  = var.engine_version
-  instance_class                  = length(var.instances_parameters) > count.index ? lookup(var.instances_parameters[count.index], "instance_type", var.instance_type) : count.index > 0 ? coalesce(var.instance_type_replica, var.instance_type) : var.instance_type
-  publicly_accessible             = length(var.instances_parameters) > count.index ? lookup(var.instances_parameters[count.index], "publicly_accessible", var.publicly_accessible) : var.publicly_accessible
+  instance_class                  = try(lookup(var.instances_parameters[count.index], "instance_type"), coalesce(var.instance_type_replica, var.instance_type))
+  publicly_accessible             = try(lookup(var.instances_parameters[count.index], "publicly_accessible"), var.publicly_accessible)
   db_subnet_group_name            = local.db_subnet_group_name
   db_parameter_group_name         = var.db_parameter_group_name
   preferred_maintenance_window    = var.preferred_maintenance_window
@@ -107,7 +135,7 @@ resource "aws_rds_cluster_instance" "this" {
   monitoring_role_arn             = local.rds_enhanced_monitoring_arn
   monitoring_interval             = var.monitoring_interval
   auto_minor_version_upgrade      = var.auto_minor_version_upgrade
-  promotion_tier                  = length(var.instances_parameters) > count.index ? lookup(var.instances_parameters[count.index], "instance_promotion_tier", count.index + 1) : count.index + 1
+  promotion_tier                  = try(lookup(var.instances_parameters[count.index], "instance_promotion_tier"), count.index + 1)
   performance_insights_enabled    = var.performance_insights_enabled
   performance_insights_kms_key_id = var.performance_insights_kms_key_id
   ca_cert_identifier              = var.ca_cert_identifier
@@ -123,15 +151,9 @@ resource "aws_rds_cluster_instance" "this" {
   tags = var.tags
 }
 
-resource "random_id" "snapshot_identifier" {
-  count = var.create_cluster ? 1 : 0
-
-  keepers = {
-    id = var.name
-  }
-
-  byte_length = 4
-}
+################################################################################
+# Enhanced Monitoring
+################################################################################
 
 data "aws_iam_policy_document" "monitoring_rds_assume_role" {
   statement {
@@ -147,10 +169,16 @@ data "aws_iam_policy_document" "monitoring_rds_assume_role" {
 resource "aws_iam_role" "rds_enhanced_monitoring" {
   count = var.create_cluster && var.create_monitoring_role && var.monitoring_interval > 0 ? 1 : 0
 
-  name               = "rds-enhanced-monitoring-${var.name}"
-  assume_role_policy = data.aws_iam_policy_document.monitoring_rds_assume_role.json
+  name        = local.iam_role_name
+  name_prefix = local.iam_role_name_prefix
+  description = var.iam_role_description
+  path        = var.iam_role_path
 
-  permissions_boundary = var.permissions_boundary
+  assume_role_policy    = data.aws_iam_policy_document.monitoring_rds_assume_role.json
+  managed_policy_arns   = var.iam_role_managed_policy_arns
+  permissions_boundary  = var.iam_role_permissions_boundary
+  force_detach_policies = var.iam_role_force_detach_policies
+  max_session_duration  = var.iam_role_max_session_duration
 
   tags = merge(var.tags, {
     Name = local.name
@@ -160,9 +188,13 @@ resource "aws_iam_role" "rds_enhanced_monitoring" {
 resource "aws_iam_role_policy_attachment" "rds_enhanced_monitoring" {
   count = var.create_cluster && var.create_monitoring_role && var.monitoring_interval > 0 ? 1 : 0
 
-  role       = local.rds_enhanced_monitoring_name
-  policy_arn = "arn:${var.iam_partition}:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+  role       = aws_iam_role.rds_enhanced_monitoring[0].name
+  policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
 }
+
+################################################################################
+# Autoscaling
+################################################################################
 
 resource "aws_appautoscaling_target" "read_replica_count" {
   count = var.create_cluster && var.replica_scale_enabled ? 1 : 0
@@ -196,6 +228,10 @@ resource "aws_appautoscaling_policy" "autoscaling_read_replica_count" {
   depends_on = [aws_appautoscaling_target.read_replica_count]
 }
 
+################################################################################
+# Security Group
+################################################################################
+
 resource "aws_security_group" "this" {
   count = var.create_cluster && var.create_security_group ? 1 : 0
 
@@ -204,7 +240,7 @@ resource "aws_security_group" "this" {
 
   description = var.security_group_description == "" ? "Control traffic to/from RDS Aurora ${var.name}" : var.security_group_description
 
-  tags = merge(var.tags, {
+  tags = merge(var.tags, var.security_group_tags, {
     Name = local.name
   })
 }
