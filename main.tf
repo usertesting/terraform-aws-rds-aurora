@@ -1,7 +1,7 @@
 locals {
   port                 = var.port == "" ? (var.engine == "aurora-postgresql" ? 5432 : 3306) : var.port
   db_subnet_group_name = var.db_subnet_group_name == "" ? join("", aws_db_subnet_group.this.*.name) : var.db_subnet_group_name
-  stored_creds         = var.db_creds_path == "" ? {} : jsondecode(data.aws_ssm_parameter.stored_db_creds[0].value)
+  stored_creds         = var.db_creds_path == "" ? "" : jsondecode(data.aws_ssm_parameter.stored_db_creds[0].value)
   master_password      = var.create_cluster && var.create_random_password && var.is_primary_cluster ? (var.db_creds_path == "" ? random_password.master_password[0].result : local.stored_creds) : var.password
   backtrack_window     = (var.engine == "aurora-mysql" || var.engine == "aurora") && var.engine_mode != "serverless" ? var.backtrack_window : 0
 
