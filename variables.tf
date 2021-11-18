@@ -123,7 +123,7 @@ variable "create_random_password" {
 variable "random_password_length" {
   description = "Length of random password to create. Defaults to `10`"
   type        = number
-  default     = 10
+  default     = 24
 }
 
 # UT specific variable
