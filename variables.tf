@@ -121,7 +121,7 @@ variable "create_random_password" {
 }
 
 variable "random_password_length" {
-  description = "Length of random password to create. Defaults to `10`"
+  description = "Length of random password to create. Defaults to `24`"
   type        = number
   default     = 24
 }
