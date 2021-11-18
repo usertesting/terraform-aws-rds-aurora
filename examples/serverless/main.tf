@@ -3,7 +3,7 @@ provider "aws" {
 }
 
 locals {
-  name   = "serverless"
+  name   = "example-${replace(basename(path.cwd), "_", "-")}"
   region = "eu-west-1"
   tags = {
     Owner       = "user"
@@ -17,7 +17,7 @@ locals {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 2"
+  version = "~> 3.0"
 
   name = local.name
   cidr = "10.99.0.0/18"
@@ -46,9 +46,6 @@ module "aurora_postgresql" {
   subnets               = module.vpc.database_subnets
   create_security_group = true
   allowed_cidr_blocks   = module.vpc.private_subnets_cidr_blocks
-
-  replica_scale_enabled = false
-  replica_count         = 0
 
   monitoring_interval = 60
 
@@ -98,9 +95,6 @@ module "aurora_mysql" {
   subnets               = module.vpc.database_subnets
   create_security_group = true
   allowed_cidr_blocks   = module.vpc.private_subnets_cidr_blocks
-
-  replica_scale_enabled = false
-  replica_count         = 0
 
   monitoring_interval = 60
 
