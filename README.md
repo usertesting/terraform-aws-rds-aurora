@@ -1,3 +1,7 @@
+> # Archival Notice
+> 
+> This repository will no longer be maintained by UserTesting, and will be archived in the near future. The most recent version of this module will still be published and available to use. Thank you to everyone who contributed to this project!
+
 # AWS RDS Aurora Terraform module
 
 Terraform module which creates AWS RDS Aurora resources.
